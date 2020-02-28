@@ -6,29 +6,45 @@ logging.basicConfig(format='%(asctime)s.%(msecs)03d [%(threadName)s] - %(message
 
 
 def productor(monitor):
+    
     print("Voy a producir")
-    for i in range(30):
+    for i in range(200):
         with monitor:          # hace el acquire y al final un release
             items.append(i)    # agrega un ítem
             monitor.notify()   # Notifica que ya se puede hacer acquire
-        time.sleep(2)
+        time.sleep(0.8)
 
 
 class Consumidor(threading.Thread):
-    def __init__(self, monitor):
+    def __init__(self, monitor,cant):
         super().__init__()
         self.monitor = monitor
+        self.cant = cant
+        self.paciencia=0
+        
 
     def run(self):
+        global turno
+        
         while (True):
+            memoria=[]
             
             with self.monitor:          # Hace el acquire y al final un release    
-                while len(items)<1:     # si no hay ítems para consumir
+                while len(items)<self.cant:     # si no hay ítems suficientes para consumir
                     self.monitor.wait()  # espera la señal, es decir el notify
-                x = items.pop(0)     # saca (consume) el primer ítem
+                
+                for i in range(self.cant):    
+                    x = items.pop(0)     # saca (consume) el primer ítem
+                    memoria.append(x)
+                     
             
-            logging.info(f'Consumí {x}')
-            time.sleep(1)
+            logging.info(f'Consumi{memoria}')
+            
+            
+            
+            time.sleep(2)
+            #turno.acquire() # para parar remmplaso la espera por esta linea
+            
 
 
 # la lista de ítems a consumir
@@ -36,11 +52,17 @@ items = []
 
 # El monitor
 items_monit = threading.Condition()
+turno = threading.Semaphore(0)
+
 
 # un thread que consume
-cons1 = Consumidor(items_monit)
-cons1.start()
+cons1 = Consumidor(items_monit,2)
+cons2 = Consumidor(items_monit,3)
+cons3 = Consumidor(items_monit,4)
 
+cons1.start()
+cons2.start()
+cons3.start()
 # El productor
 productor(items_monit)
 
